@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Daily Task Reminder Agent</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #68738a;
+      --line: #e5eaf2;
+      --primary: #5367e8;
+      --primary-dark: #4053cf;
+      --green: #16865b;
+      --red: #d94b55;
+      --orange: #c77a19;
+      --shadow: 0 12px 35px rgba(32, 48, 85, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .container { width: min(1050px, 92%); margin: 34px auto; }
+    header {
+      background: linear-gradient(120deg, #5367e8, #7888f3);
+      color: white;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+    header .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; opacity: .85; }
+    h1 { margin: 9px 0 8px; font-size: clamp(25px, 4vw, 36px); }
+    header p { margin: 0; line-height: 1.5; opacity: .94; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .stat, .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+    .stat { padding: 17px; }
+    .stat span { display: block; color: var(--muted); font-size: 13px; }
+    .stat strong { display: block; font-size: 27px; margin-top: 8px; }
+    .layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; align-items: start; }
+    .panel { padding: 21px; }
+    h2 { margin: 0 0 17px; font-size: 19px; }
+    label { display: block; font-size: 13px; font-weight: 700; margin: 13px 0 7px; }
+    input, select {
+      width: 100%; padding: 12px; border: 1px solid #d8dfeb; border-radius: 10px;
+      font-size: 14px; color: var(--ink); background: white; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(83,103,232,.12); }
+    button {
+      border: 0; border-radius: 10px; padding: 11px 15px; cursor: pointer;
+      font-size: 14px; font-weight: 700; transition: .15s ease;
+    }
+    button:focus-visible { outline: 3px solid rgba(83,103,232,.3); outline-offset: 2px; }
+    .primary { width: 100%; background: var(--primary); color: white; margin-top: 17px; }
+    .primary:hover { background: var(--primary-dark); }
+    .secondary { background: #eef1ff; color: var(--primary-dark); }
+    .danger { background: #fff0f1; color: var(--red); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .filter { background: #f0f2f7; color: #59647a; }
+    .filter.active { background: #e9edff; color: var(--primary-dark); }
+    .task-list { display: grid; gap: 11px; }
+    .task {
+      border: 1px solid var(--line); border-radius: 13px; padding: 14px;
+      display: flex; gap: 12px; align-items: flex-start; background: white;
+    }
+    .task.done { opacity: .7; }
+    .task.done .task-title { text-decoration: line-through; color: var(--muted); }
+    .task-check { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--primary); flex: 0 0 auto; }
+    .task-main { flex: 1; min-width: 0; }
+    .task-title { font-weight: 700; overflow-wrap: anywhere; }
+    .task-date { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .task-actions { display: flex; gap: 6px; align-items: center; }
+    .task-actions button { padding: 7px 9px; font-size: 12px; }
+    .pill { display: inline-block; border-radius: 20px; padding: 5px 9px; font-size: 11px; font-weight: 700; margin-top: 8px; }
+    .pill.pending { color: #59647a; background: #eef1f6; }
+    .pill.soon { color: var(--orange); background: #fff4df; }
+    .pill.overdue { color: var(--red); background: #fff0f1; }
+    .pill.completed { color: var(--green); background: #e8f7f0; }
+    .empty { text-align: center; color: var(--muted); padding: 34px 12px; border: 1px dashed #d5dce8; border-radius: 12px; }
+    .suggestion { margin-top: 16px; background: #f0f3ff; border: 1px solid #e0e5ff; border-radius: 13px; padding: 14px; }
+    .suggestion strong { display: block; margin-bottom: 5px; color: var(--primary-dark); }
+    .suggestion p { margin: 0; color: #4d5871; font-size: 13px; line-height: 1.5; }
+    .small-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 14px; }
+    .footer { text-align: center; color: var(--muted); font-size: 12px; margin: 20px 0; }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .task { flex-wrap: wrap; }
+      .task-actions { width: 100%; padding-left: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <div class="eyebrow">Student productivity assistant</div>
+      <h1>Smart Daily Task Reminder Agent</h1>
+      <p>Organize your work, keep track of deadlines, and focus on the tasks that need attention first.</p>
+    </header>
+
+    <section class="stats" aria-label="Task summary">
+      <div class="stat"><span>Total tasks</span><strong id="totalCount">0</strong></div>
+      <div class="stat"><span>Pending</span><strong id="pendingCount">0</strong></div>
+      <div class="stat"><span>Due soon</span><strong id="soonCount">0</strong></div>
+      <div class="stat"><span>Completed</span><strong id="completedCount">0</strong></div>
+    </section>
+
+    <section class="layout">
+      <div class="panel">
+        <h2>Add a new task</h2>
+        <form id="taskForm">
+          <label for="taskName">Task name</label>
+          <input id="taskName" type="text" maxlength="90" placeholder="Example: Finish DBMS assignment" required>
+          <label for="dueDate">Due date</label>
+          <input id="dueDate" type="date" required>
+          <label for="priority">Priority</label>
+          <select id="priority">
+            <option value="Normal">Normal</option>
+            <option value="High">High</option>
+            <option value="Low">Low</option>
+          </select>
+          <button class="primary" type="submit">+ Add task</button>
+        </form>
+        <div class="suggestion" aria-live="polite">
+          <strong>Agent suggestion</strong>
+          <p id="suggestionText">Add your tasks and I will help you decide what to work on first.</p>
+        </div>
+        <p class="small-note">Your tasks are saved in this browser on this device using local storage. This project does not send your data to a server.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Your task list</h2>
+        <div class="toolbar" aria-label="Filter tasks">
+          <button class="filter active" data-filter="all" type="button">All</button>
+          <button class="filter" data-filter="pending" type="button">Pending</button>
+          <button class="filter" data-filter="completed" type="button">Completed</button>
+        </div>
+        <div id="taskList" class="task-list" aria-live="polite"></div>
+      </div>
+    </section>
+    <div class="footer">Smart Daily Task Reminder Agent · Built with HTML, CSS and JavaScript</div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "smartDailyTaskReminderAgent.tasks.v1";
+    let tasks = loadTasks();
+    let currentFilter = "all";
+
+    const form = document.getElementById("taskForm");
+    const taskNameInput = document.getElementById("taskName");
+    const dueDateInput = document.getElementById("dueDate");
+    const priorityInput = document.getElementById("priority");
+    const taskList = document.getElementById("taskList");
+
+    // Set the date field's minimum to today.
+    const today = new Date();
+    dueDateInput.min = toDateKey(today);
+
+    function toDateKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function loadTasks() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        return Array.isArray(saved) ? saved : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveTasks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function dayDifference(dateString) {
+      const [year, month, day] = dateString.split("-").map(Number);
+      const due = new Date(year, month - 1, day);
+      const now = new Date();
+      const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return Math.round((due - todayDate) / 86400000);
+    }
+
+    function taskStatus(task) {
+      if (task.completed) return "completed";
+      const difference = dayDifference(task.dueDate);
+      if (difference < 0) return "overdue";
+      if (difference <= 2) return "soon";
+      return "pending";
+    }
+
+    function statusLabel(status) {
+      return {
+        completed: "Completed",
+        overdue: "Overdue",
+        soon: "Due soon",
+        pending: "Pending"
+      }[status];
+    }
+
+    function readableDate(dateString) {
+      const [year, month, day] = dateString.split("-").map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        day: "numeric", month: "short", year: "numeric"
+      });
+    }
+
+    function render() {
+      const total = tasks.length;
+      const completed = tasks.filter(task => task.completed).length;
+      const pending = tasks.filter(task => !task.completed).length;
+      const soon = tasks.filter(task => taskStatus(task) === "soon" || taskStatus(task) === "overdue").length;
+
+      document.getElementById("totalCount").textContent = total;
+      document.getElementById("pendingCount").textContent = pending;
+      document.getElementById("soonCount").textContent = soon;
+      document.getElementById("completedCount").textContent = completed;
+
+      const filtered = tasks
+        .filter(task => currentFilter === "all" ||
+          (currentFilter === "completed" ? task.completed : !task.completed))
+        .sort((a, b) => {
+          if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+          const priorityOrder = { High: 0, Normal: 1, Low: 2 };
+          return dayDifference(a.dueDate) - dayDifference(b.dueDate) ||
+            priorityOrder[a.priority] - priorityOrder[b.priority];
+        });
+
+      taskList.innerHTML = "";
+      if (filtered.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = currentFilter === "completed"
+          ? "No completed tasks yet."
+          : currentFilter === "pending"
+            ? "No pending tasks. Great work!"
+            : "No tasks yet. Add your first task using the form.";
+        taskList.appendChild(empty);
+      } else {
+        filtered.forEach(task => taskList.appendChild(createTaskElement(task)));
+      }
+      updateSuggestion();
+    }
+
+    function createTaskElement(task) {
+      const status = taskStatus(task);
+      const item = document.createElement("article");
+      item.className = "task" + (task.completed ? " done" : "");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "task-check";
+      checkbox.checked = task.completed;
+      checkbox.setAttribute("aria-label", "Mark " + task.name + " as completed");
+      checkbox.addEventListener("change", () => {
+        task.completed = checkbox.checked;
+        saveTasks();
+        render();
+      });
+
+      const main = document.createElement("div");
+      main.className = "task-main";
+      const title = document.createElement("div");
+      title.className = "task-title";
+      title.textContent = task.name;
+
+      const date = document.createElement("div");
+      date.className = "task-date";
+      date.textContent = "Due: " + readableDate(task.dueDate) + " · Priority: " + task.priority;
+
+      const pill = document.createElement("span");
+      pill.className = "pill " + status;
+      pill.textContent = statusLabel(status);
+
+      main.append(title, date, pill);
+
+      const actions = document.createElement("div");
+      actions.className = "task-actions";
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "danger";
+      deleteButton.textContent = "Delete";
+      deleteButton.addEventListener("click", () => {
+        tasks = tasks.filter(entry => entry.id !== task.id);
+        saveTasks();
+        render();
+      });
+
+      actions.appendChild(deleteButton);
+      item.append(checkbox, main, actions);
+      return item;
+    }
+
+    function updateSuggestion() {
+      const suggestion = document.getElementById("suggestionText");
+      const active = tasks.filter(task => !task.completed);
+      if (active.length === 0) {
+        suggestion.textContent = tasks.length
+          ? "All your tasks are completed. Excellent work!"
+          : "Add your tasks and I will help you decide what to work on first.";
+        return;
+      }
+
+      const overdue = active.filter(task => taskStatus(task) === "overdue");
+      const urgent = active.filter(task => taskStatus(task) === "soon");
+      const highPriority = active.filter(task => task.priority === "High");
+      const focus = [...overdue, ...urgent, ...highPriority]
+        .sort((a, b) => dayDifference(a.dueDate) - dayDifference(b.dueDate))[0];
+
+      if (overdue.length) {
+        suggestion.textContent = `You have ${overdue.length} overdue task${overdue.length === 1 ? "" : "s"}. Start with "${overdue[0].name}" and complete the overdue work first.`;
+      } else if (urgent.length) {
+        suggestion.textContent = `"${urgent[0].name}" is due soon. Try to finish it before starting less urgent tasks.`;
+      } else if (focus) {
+        suggestion.textContent = `"${focus.name}" has high priority. Consider working on it next.`;
+      } else {
+        const next = [...active].sort((a, b) => dayDifference(a.dueDate) - dayDifference(b.dueDate))[0];
+        suggestion.textContent = `You are on track. Your next upcoming task is "${next.name}".`;
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const name = taskNameInput.value.trim();
+      const dueDate = dueDateInput.value;
+      if (!name || !dueDate) return;
+      if (dueDate < toDateKey(new Date())) {
+        alert("Please choose today or a future date.");
+        return;
+      }
+
+      tasks.push({
+        id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random(),
+        name,
+        dueDate,
+        priority: priorityInput.value,
+        completed: false
+      });
+      saveTasks();
+      form.reset();
+      dueDateInput.min = toDateKey(new Date());
+      render();
+      taskNameInput.focus();
+    });
+
+    document.querySelectorAll(".filter").forEach(button => {
+      button.addEventListener("click", () => {
+        currentFilter = button.dataset.filter;
+        document.querySelectorAll(".filter").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+        render();
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>
